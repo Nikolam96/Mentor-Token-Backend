@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
 const bcrypt = require("bcryptjs");
+const mongoosePaginate = require("mongoose-paginate-v2");
 
 const userSchema = new mongoose.Schema(
   {
@@ -30,33 +31,35 @@ const userSchema = new mongoose.Schema(
     },
     startUpName: {
       type: String,
-      unique: true,
-      minlength: [3, "Password must be at least 8 characters"],
     },
     businessAddress: String,
     inviteMentors: {
       type: String,
       lowercase: true,
-      validate: [validator.isEmail, "Please provide a valid email"],
     },
     acceptedJobs: [
       {
         type: mongoose.Schema.Types.ObjectId,
+        ref: "Job",
       },
     ],
-    representative: String,
     jobsPosted: [
       {
         type: mongoose.Schema.Types.ObjectId,
+        ref: "Job",
       },
     ],
     skills: [{ type: String }],
     description: String,
-    phone: Number,
+    phone: String,
+    passwordResetToken: String,
+    passwordResetExpires: Date,
   },
 
   { timestamps: true }
 );
+
+userSchema.plugin(mongoosePaginate);
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();

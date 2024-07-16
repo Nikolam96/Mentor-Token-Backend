@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const mongoosePaginate = require("mongoose-paginate-v2");
 
 const applicationSchema = new mongoose.Schema(
   {
@@ -8,6 +9,11 @@ const applicationSchema = new mongoose.Schema(
       required: true,
     },
     mentorId: {
+      type: mongoose.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    companyId: {
       type: mongoose.Types.ObjectId,
       ref: "User",
       required: true,
@@ -22,11 +28,14 @@ const applicationSchema = new mongoose.Schema(
     },
     acceptedStatus: {
       type: String,
-      enum: ["done", "rejected", "in progress"],
+      enum: ["done", "rejected", "in progress", "pending"],
+      default: "pending",
     },
   },
   { timestamps: true }
 );
+
+applicationSchema.plugin(mongoosePaginate);
 
 const Application = mongoose.model("Application", applicationSchema);
 

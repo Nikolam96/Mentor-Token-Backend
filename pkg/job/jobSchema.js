@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const mongoosePaginate = require("mongoose-paginate-v2");
 
 const jobSchema = new mongoose.Schema(
   {
@@ -7,8 +8,12 @@ const jobSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    title: String,
+    jobPicture: {
+      type: String,
+      default: "default.img",
+    },
     description: String,
-    skillsRequired: [{ type: String }],
     status: {
       type: String,
       enum: ["direct", "open"],
@@ -16,6 +21,8 @@ const jobSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+jobSchema.plugin(mongoosePaginate);
 
 const Job = mongoose.model("Job", jobSchema);
 
