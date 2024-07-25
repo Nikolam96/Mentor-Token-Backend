@@ -53,6 +53,11 @@ exports.updateJob = async (req, res, next) => {
 
 exports.deleteJob = async (req, res, next) => {
   try {
+    const deletedApplications = await Application.deleteMany({
+      jobId: req.params.id,
+      companyId: req.body.companyId,
+    });
+
     const deletedJob = await Job.findByIdAndDelete(req.params.id);
 
     if (!deletedJob) {
@@ -65,6 +70,7 @@ exports.deleteJob = async (req, res, next) => {
       status: "success",
       data: {
         job: deletedJob,
+        deletedApplications: deletedApplications,
       },
     });
   } catch (err) {
@@ -130,7 +136,7 @@ exports.offerJob = async (req, res, next) => {
     req.body.jobPicture = req.file.filename;
   }
 
-  const { companyId, title, description, mentorId } = req.body;
+  const { companyId, title, description, mentorId, jobPicture } = req.body;
 
   if (!companyId || !title || !description) {
     const error = new Error("Invalid Data");
@@ -143,6 +149,7 @@ exports.offerJob = async (req, res, next) => {
       companyId: companyId,
       title: title,
       description: description,
+      jobPicture: jobPicture,
       status: "direct",
     });
 
@@ -200,12 +207,12 @@ exports.getAll = async (req, res, next) => {
       sort: { createdAt: -1 },
     };
 
-    const jobs = await Job.paginate({}, options);
+    const jobs = await Job.paginate({ status: "open" }, options);
 
     if (!jobs) {
       const error = new Error("There are no Jobs currently");
       error.statusCode = 404;
-      next(error);
+      return next(error);
     }
 
     res.json({

@@ -21,6 +21,12 @@ exports.createApplication = async (req, res, next) => {
 };
 exports.updateApplication = async (req, res, next) => {
   try {
+    if (req.body.jobId) {
+      const updatedJob = await Job.findByIdAndUpdate(req.body.jobId, {
+        status: "direct",
+      });
+    }
+
     const updatedApplication = await Application.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -49,6 +55,19 @@ exports.updateApplication = async (req, res, next) => {
 
 exports.deleteApplication = async (req, res, next) => {
   try {
+    if (req.body.mentorId) {
+      const deletedApplication = await Application.findOneAndDelete({
+        jobId: req.params.id,
+        mentorId: req.body.mentorId,
+      });
+      res.status(200).json({
+        status: "success",
+        data: {
+          application: deletedApplication,
+        },
+      });
+    }
+
     const deletedApplication = await Application.findByIdAndDelete(
       req.params.id
     );
@@ -131,6 +150,7 @@ exports.getUserApplications = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const userId = req.params.id;
+    const acceptedStatus = req.query.acceptedStatus || false;
 
     const limit = req.query.limit || 8;
     const options = {
@@ -143,8 +163,36 @@ exports.getUserApplications = async (req, res, next) => {
       sort: { createdAt: -1 },
     };
 
+    if (acceptedStatus) {
+      const jobs = await Application.paginate(
+        {
+          mentorId: userId,
+          $and: [
+            { acceptedStatus: { $ne: "pending" } },
+            { acceptedStatus: acceptedStatus },
+          ],
+        },
+        options
+      );
+
+      if (!jobs) {
+        const error = new Error("This User doesn't exist");
+        error.statusCode = 404;
+        next(error);
+      }
+
+      res.json({
+        data: {
+          jobs: jobs,
+        },
+      });
+    }
+
     const jobs = await Application.paginate(
-      { mentorId: userId, acceptedStatus: { $ne: "pending" } },
+      {
+        mentorId: userId,
+        $and: [{ acceptedStatus: { $ne: "pending" } }],
+      },
       options
     );
 
@@ -181,7 +229,6 @@ exports.getUserPendingApplications = async (req, res, next) => {
     };
 
     if (req.query.applicationType) {
-      console.log(req.query.applicationType);
       const pending = await Application.paginate(
         {
           mentorId: userId,
@@ -191,7 +238,7 @@ exports.getUserPendingApplications = async (req, res, next) => {
         options
       );
 
-      res.json({
+      return res.json({
         data: {
           pending: pending,
         },
@@ -311,6 +358,7 @@ exports.getApplicationsByMonth = async (req, res, next) => {
     const applicationsByMonth = await Application.aggregate([
       {
         $match: {
+          acceptedStatus: { $ne: "pending" },
           mentorId: new mongoose.Types.ObjectId(userId),
           createdAt: { $gte: oneYearAgo },
         },
@@ -386,6 +434,45 @@ exports.mentorStats = async (req, res, next) => {
         appliedJobs: appliedJobs.length,
         finishedJobs: finishedJobs.length,
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.findApplication = async (req, res, next) => {
+  try {
+    const fondedApplication = await Application.exists({
+      mentorId: req.body.mentorId,
+      jobId: req.body.jobId,
+      companyId: req.body.companyId,
+    });
+    res.json({
+      data: {
+        fondedApplication: fondedApplication,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.findCustomApplication = async (req, res, next) => {
+  try {
+    const fondedApplication = await Application.find({
+      jobId: req.params.id,
+    }).populate("mentorId", "name picture");
+
+    const limitedApplications = fondedApplication.slice(0, 3);
+
+    if (fondedApplication.length == 0) {
+      return res.json({
+        fondedApplication: false,
+      });
+    }
+    res.json({
+      fondedApplication: fondedApplication,
+      limitedApplications: limitedApplications,
     });
   } catch (err) {
     next(err);

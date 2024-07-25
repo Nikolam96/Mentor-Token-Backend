@@ -9,7 +9,7 @@ const mg = mailgun.client({
 const sendMailByGun = async (option) => {
   try {
     let mailOption = {
-      from: "Mailgun Sandbox <postmaster@sandbox0e23aa4df8434026b23166dce103eeaa.mailgun.org>",
+      from: "Mailgun Sandbox <mailgun@sandbox8480f4debe00467ebc7d9d1d85daf2d3.mailgun.org>",
       to: option.email,
       subject: option.subject,
       text: option.message,

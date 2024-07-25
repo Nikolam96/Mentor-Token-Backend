@@ -37,18 +37,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       lowercase: true,
     },
-    acceptedJobs: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Job",
-      },
-    ],
-    jobsPosted: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Job",
-      },
-    ],
     skills: [{ type: String }],
     description: String,
     phone: String,

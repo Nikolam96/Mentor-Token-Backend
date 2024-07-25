@@ -211,6 +211,7 @@ exports.getAll = async (req, res, next) => {
 };
 
 exports.forgotPassword = async (req, res, next) => {
+  console.log(req.body);
   try {
     const user = await User.findOne({ email: req.body.email });
     if (!user) {
@@ -228,14 +229,12 @@ exports.forgotPassword = async (req, res, next) => {
     user.passwordResetExpires = Date.now() + 30 * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
-    const resetUrl = `${req.protocol}://${req.get(
-      "host"
-    )}/resetPassword/${resetToken}`;
+    const resetUrl = `http://localhost:5173/resetPassword/${resetToken}`;
 
-    const message = `If you forgot your password, please use the PATCH request with your new password at this URL: ${resetUrl}`;
+    const message = `If you forgot your password,reset your new password at this URL:  ${resetUrl}`;
 
     await sendMailGun({
-      email: "nikola1696@gmail.com",
+      email: "nikolamitic1696@gmail.com",
       subject: "URGENT!!! Reset password within 30 minutes",
       message: message,
     });
@@ -251,13 +250,15 @@ exports.forgotPassword = async (req, res, next) => {
 
 exports.resetPassword = async (req, res, next) => {
   try {
-    const token = req.params.token;
+    const token = req.params.id;
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     const user = await User.findOne({
       passwordResetToken: hashedToken,
       passwordResetExpires: { $gt: Date.now() },
     });
+    console.log(Date.now());
+    console.log(user);
     if (!user) {
       const error = new Error("Token expired");
       error.statusCode = 404;
@@ -269,21 +270,9 @@ exports.resetPassword = async (req, res, next) => {
     user.passwordResetToken = undefined;
 
     await user.save();
-    const jwtToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES,
-    });
-
-    res.cookie("jwt", jwtToken, {
-      expires: new Date(
-        Date.now() + process.env.JWT_COOKIE_EXPIRES * 24 * 60 * 60 * 1000
-      ),
-      secure: false,
-      httpOnly: true,
-    });
 
     res.status(201).json({
       status: "success",
-      token: jwtToken,
     });
   } catch (err) {
     next(err);
@@ -315,7 +304,9 @@ exports.searchMentor = async (req, res) => {
   try {
     const query = req.query.q;
     if (!query) {
-      return res.status(400).json({ error: "Query parameter is required" });
+      const error = new Error("Query parameter is required");
+      error.statusCode = 400;
+      next(error);
     }
     const mentors = await User.find({
       role: "mentor",
@@ -323,6 +314,80 @@ exports.searchMentor = async (req, res) => {
     });
 
     res.json(mentors);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateUser = async (req, res, next) => {
+  try {
+    if (req.file) {
+      req.body.picture = req.file.filename;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(req.body._id, req.body, {
+      runValidators: true,
+      new: true,
+    });
+
+    res.json({
+      status: "success",
+      data: {
+        user: updatedUser,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createMentorFromStartup = async (req, res, next) => {
+  try {
+    if (req.body.email) {
+      const startUpName = await User.findOne({
+        email: req.body.email,
+      });
+      if (startUpName) {
+        const error = new Error("That email already exists");
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
+    const { name, email } = req.body;
+
+    const newUser = await User.create({
+      email: email,
+      name: name,
+      password: "newMentor",
+      role: "mentor",
+    });
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    newUser.passwordResetToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    newUser.passwordResetExpires = Date.now() + 30 * 60 * 1000;
+    await newUser.save({ validateBeforeSave: false });
+
+    const resetUrl = `http://localhost:5173/resetPassword/${resetToken}`;
+
+    const message = `Enter your new password on this URL:  ${resetUrl} . In case you cant set password default password is : newMentor`;
+
+    await sendMailGun({
+      email: "nikolamitic1696@gmail.com",
+      subject: "URGENT!!! Reset password within 30 minutes",
+      message: message,
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Token sent to email!",
+      newUser: newUser,
+    });
   } catch (err) {
     next(err);
   }
